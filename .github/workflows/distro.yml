@@ -237,7 +237,15 @@ jobs:
 
       # setup llvm
 
+      - name: Cache LLVM source
+        id: cache-llvm-source
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/llvm-project
+          key: llvm-source-${{ needs.settings.outputs.LLVM_PROJECT_COMMIT }}
+
       - name: Get LLVM
+        if: steps.cache-llvm-source.outputs.cache-hit != 'true'
         working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
         run: |
 
