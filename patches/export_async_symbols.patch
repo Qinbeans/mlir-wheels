@@ -1,0 +1,19 @@
+diff --git a/mlir/lib/ExecutionEngine/CMakeLists.txt b/mlir/lib/ExecutionEngine/CMakeLists.txt
+--- a/mlir/lib/ExecutionEngine/CMakeLists.txt
++++ b/mlir/lib/ExecutionEngine/CMakeLists.txt
+@@ -204,13 +204,13 @@ if(LLVM_ENABLE_PIC)
+     LINK_LIBS PUBLIC
+     ${LLVM_PTHREAD_LIB}
+   )
+-  set_property(TARGET mlir_async_runtime PROPERTY CXX_VISIBILITY_PRESET hidden)
++#  set_property(TARGET mlir_async_runtime PROPERTY CXX_VISIBILITY_PRESET hidden)
+   target_compile_definitions(mlir_async_runtime PRIVATE mlir_async_runtime_EXPORTS)
+   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+     # Don't export symbols from link-time dependencies, these are internal
+     # implementation details.
+     # FIXME: Add a similar fix for Windows.
+-    target_link_options(mlir_async_runtime PRIVATE "-Wl,-exclude-libs,ALL")
++#    target_link_options(mlir_async_runtime PRIVATE "-Wl,-exclude-libs,ALL")
+   endif()
+ 
+   add_mlir_library(mlir_arm_sme_abi_stubs
