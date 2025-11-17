@@ -1,4 +1,5 @@
 diff --git a/mlir/lib/ExecutionEngine/CMakeLists.txt b/mlir/lib/ExecutionEngine/CMakeLists.txt
+index fdeb4dacf927..aa17a07f4638 100644
 --- a/mlir/lib/ExecutionEngine/CMakeLists.txt
 +++ b/mlir/lib/ExecutionEngine/CMakeLists.txt
 @@ -204,13 +204,13 @@ if(LLVM_ENABLE_PIC)
