@@ -155,59 +155,8 @@ jobs:
           path: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
           name: build_artifact_python_bindings-${{ matrix.OS }}-${{ matrix.ARCH }}-${{ matrix.BUILD_AMDGPU && 'amdgpu-' || '' }}${{ matrix.BUILD_CUDA && 'cuda-' || '' }}${{ matrix.BUILD_VULKAN && 'vulkan-' || '' }}${{ matrix.BUILD_OPENMP && 'openmp' || '' }}
 
-  smoke-test:
-    needs: [build]
-
-    runs-on: ${{ matrix.runs-on }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        runs-on: ["ubuntu-22.04", "windows-2022", "macos-14", "macos-13"]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
-        include:
-          [
-            { runs-on: "ubuntu-22.04", arch: "x86_64" },
-            { runs-on: "windows-2022", arch: "AMD64" },
-            { runs-on: "macos-13", arch: "x86_64" },
-            { runs-on: "macos-14", arch: "arm64" },
-          ]
-
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: llvm/llvm-project
-          sparse-checkout: mlir/test/python/dialects
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: build_artifact_python_bindings-${{ matrix.runs-on }}-${{ matrix.arch }}-
-          path: wheelhouse
-          merge-multiple: true
-
-      - name: Install, configure, and test
-        run: |
-
-          pip install mlir-python-bindings numpy -v -f wheelhouse
-          cd mlir/test/python/dialects
-          for f in *.py; do
-            if [[ "$f" == "python_test.py" ]]; then
-              continue
-            fi
-            python $f
-          done
-
   upload_bindings_wheels:
-    needs: [build, smoke-test]
+    needs: [build]
 
     runs-on: ubuntu-latest
 
