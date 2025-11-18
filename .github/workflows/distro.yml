@@ -50,11 +50,6 @@ on:
         required: false
         default: true
         type: boolean
-      RUN_TESTS:
-        description: "whether to run llvm tests after build"
-        required: false
-        default: false
-        type: boolean
       UPLOAD_ARTIFACTS:
         description: "whether to upload artifacts and create releases"
         required: false
@@ -131,7 +126,7 @@ jobs:
       DEBUG_ENABLED: ${{ inputs.DEBUG_ENABLED }}
       DEBUG_OS: ${{ inputs.DEBUG_OS }}
       LLVM_PROJECT_COMMIT: ${{ needs.get_llvm_project_commit.outputs.LLVM_PROJECT_COMMIT }}
-      RUN_TESTS: ${{ inputs.RUN_TESTS }}
+      RUN_TESTS: "false"
       UPLOAD_ARTIFACTS: ${{ steps.settings.outputs.UPLOAD_ARTIFACTS }}
       USE_CMAKE_NAMESPACES: ${{ inputs.USE_CMAKE_NAMESPACES }}
 
