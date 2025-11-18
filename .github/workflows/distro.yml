@@ -55,6 +55,11 @@ on:
         required: false
         default: false
         type: boolean
+      UPLOAD_ARTIFACTS:
+        description: "whether to upload artifacts and create releases"
+        required: false
+        default: false
+        type: boolean
   #      DEBUG_CI_FAST_BUILD:
   #        description: 'whether to build only one single llvm target (llvm-tblgen)'
   #        required: false
@@ -108,7 +113,9 @@ jobs:
         run: |
 
           UPLOAD_ARTIFACTS="true"
-          if [ x"${{ github.event.schedule }}" == x"0 */4 * * *" ] || [ x"$DEBUG_CI_FAST_BUILD" == x"true" ]; then
+          if [ x"${{ github.event_name }}" == x"workflow_dispatch" ]; then
+            UPLOAD_ARTIFACTS="${{ inputs.UPLOAD_ARTIFACTS }}"
+          elif [ x"${{ github.event.schedule }}" == x"0 */4 * * *" ] || [ x"$DEBUG_CI_FAST_BUILD" == x"true" ]; then
             UPLOAD_ARTIFACTS="false"
           fi
 
