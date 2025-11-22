@@ -66,12 +66,6 @@ on:
     types:
       - published
 
-  schedule:
-    # At minute 0 past hour 1. (see https://crontab.guru)
-    - cron: "00 01 * * *"
-      # At minute 0 past every 4th hour. (see https://crontab.guru)
-    - cron: "0 */4 * * *"
-
 jobs:
   get_llvm_project_commit:
     name: Get latest LLVM commit
