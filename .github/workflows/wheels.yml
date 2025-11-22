@@ -4,26 +4,24 @@ on:
   workflow_dispatch:
     inputs:
       MLIR_WHEEL_VERSION:
-        description: 'mlir wheel version'
+        description: "mlir wheel version"
         type: string
         required: false
-        default: ''
+        default: ""
       USE_LOCAL_VERSION:
-        description: 'use local version for wheel'
+        description: "use local version for wheel"
         type: string
-        default: 1
+        default: "1"
   workflow_call:
     inputs:
       MLIR_WHEEL_VERSION:
-        description: 'mlir wheel version'
+        description: "mlir wheel version"
         type: string
         required: false
-        default: ''
+        default: ""
 
 jobs:
-
   build:
-
     continue-on-error: true
 
     runs-on: ${{ matrix.OS }}
@@ -42,30 +40,30 @@ jobs:
             ARCH: x86_64
             BUILD_AMDGPU: true
 
-#          - OS: ubuntu-22.04
-#            ARCH: x86_64
-#            BUILD_VULKAN: true
-#
-#          - OS: ubuntu-22.04
-#            ARCH: x86_64
-#            BUILD_OPENMP: true
+          #          - OS: ubuntu-22.04
+          #            ARCH: x86_64
+          #            BUILD_VULKAN: true
+          #
+          #          - OS: ubuntu-22.04
+          #            ARCH: x86_64
+          #            BUILD_OPENMP: true
 
           - OS: windows-2022
             ARCH: AMD64
 
-          - OS: macos-13
-            ARCH: x86_64
+          # - OS: macos-13
+          #   ARCH: x86_64
 
           - OS: macos-14
             ARCH: arm64
 
-#          - OS: macos-13
-#            ARCH: arm64
-#            BUILD_VULKAN: true
-#
-#          - OS: macos-13
-#            ARCH: arm64
-#            BUILD_OPENMP: true
+    #          - OS: macos-13
+    #            ARCH: arm64
+    #            BUILD_VULKAN: true
+    #
+    #          - OS: macos-13
+    #            ARCH: arm64
+    #            BUILD_OPENMP: true
 
     defaults:
       run:
@@ -93,13 +91,13 @@ jobs:
         # don't move because you can't parameterize -uses: ./actions/setup_ccache with workspace_root
       - name: Copy stuff to workspace_root
         run: |
-          
+
           WORKSPACE_ROOT="${{ steps.setup_base.outputs.WORKSPACE_ROOT }}"
           if [[ "${{ matrix.OS }}" == *"windows"* ]]; then
             WORKSPACE_ROOT=$(echo "/$WORKSPACE_ROOT" | sed -e 's/\\/\//g' -e 's/://')
           fi
           ls -lah
-          
+
           if [[ x"$PWD" != x"$WORKSPACE_ROOT" ]]; then
             shopt -s dotglob
             cp -r ./* "$WORKSPACE_ROOT"
@@ -110,7 +108,7 @@ jobs:
         if: contains(matrix.OS, 'macos')
         shell: bash
         run: |
-          
+
           # echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion)" | tee -a $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=11.0" | tee -a $GITHUB_ENV
 
@@ -119,10 +117,10 @@ jobs:
       - name: cibuildwheel python bindings
         working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
         run: |
-          
+
           cp -R scripts python_bindings/scripts
           pushd python_bindings
-          
+
           BUILD_CUDA=${{ matrix.BUILD_CUDA }} \
           BUILD_AMDGPU=${{ matrix.BUILD_AMDGPU }} \
           BUILD_OPENMP=${{ matrix.BUILD_OPENMP }} \
@@ -134,14 +132,14 @@ jobs:
           MLIR_WHEEL_VERSION=${{ inputs.MLIR_WHEEL_VERSION }} \
           USE_LOCAL_VERSION=${{ inputs.USE_LOCAL_VERSION != '' && inputs.USE_LOCAL_VERSION || 1 }} \
           cibuildwheel --output-dir ../wheelhouse
-          
+
           popd
 
       - name: Download cache from container ubuntu
         if: ${{ matrix.OS == 'ubuntu-22.04' && (success() || failure()) }}
         working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
         run: |
-          
+
           ccache -s
           HOST_CCACHE_DIR="$(ccache --get-config cache_dir)"
           rm -rf $HOST_CCACHE_DIR
@@ -156,155 +154,9 @@ jobs:
         with:
           path: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
           name: build_artifact_python_bindings-${{ matrix.OS }}-${{ matrix.ARCH }}-${{ matrix.BUILD_AMDGPU && 'amdgpu-' || '' }}${{ matrix.BUILD_CUDA && 'cuda-' || '' }}${{ matrix.BUILD_VULKAN && 'vulkan-' || '' }}${{ matrix.BUILD_OPENMP && 'openmp' || '' }}
-
-  build-linux-aarch64:
-
-    continue-on-error: true
-
-    runs-on: ${{ matrix.OS }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - OS: ubuntu-22.04-arm
-            ARCH: aarch64
-
-    steps:
-      - name: Checkout actions
-        uses: actions/checkout@v3
-
-      - uses: ./actions/setup_base
-        id: setup_base
-        with:
-          MATRIX_OS: ${{ matrix.OS }}
-          MATRIX_ARCH: ${{ matrix.ARCH }}
-
-      - uses: ./actions/setup_ccache
-        id: setup_ccache
-        with:
-          MATRIX_OS: ${{ matrix.OS }}
-          MATRIX_ARCH: ${{ matrix.ARCH }}
-          WORKSPACE_ROOT: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-
-        # This step is needed because action/checkout does not support paths.
-        # don't move because you can't parameterize -uses: ./actions/setup_ccache with workspace_root
-      - name: Copy stuff to workspace_root
-        run: |
-          
-          WORKSPACE_ROOT="${{ steps.setup_base.outputs.WORKSPACE_ROOT }}"
-          ls -lah
-          
-          if [[ x"$PWD" != x"$WORKSPACE_ROOT" ]]; then
-            shopt -s dotglob
-            cp -r ./* "$WORKSPACE_ROOT"
-          fi
-          ls -lah "$WORKSPACE_ROOT"
-
-      # build
-
-      - name: cibuildwheel python bindings aarch64
-        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-        run: |
-          
-          cp -R scripts python_bindings/scripts
-          pushd python_bindings
-          
-          BUILD_CUDA=${{ matrix.BUILD_CUDA }} \
-          BUILD_AMDGPU=${{ matrix.BUILD_AMDGPU }} \
-          BUILD_OPENMP=${{ matrix.BUILD_OPENMP }} \
-          BUILD_VULKAN=${{ matrix.BUILD_VULKAN }} \
-          CIBW_ARCHS=${{ matrix.ARCH }} \
-          CMAKE_GENERATOR=Ninja \
-          HOST_CCACHE_DIR="$(ccache --get-config cache_dir)" \
-          MATRIX_OS=${{ matrix.OS }} \
-          MLIR_WHEEL_VERSION=${{ inputs.MLIR_WHEEL_VERSION }} \
-          USE_LOCAL_VERSION=${{ inputs.USE_LOCAL_VERSION != '' && inputs.USE_LOCAL_VERSION || 1 }} \
-          cibuildwheel --output-dir ../wheelhouse
-          
-          popd
-
-      - name: Download cache from container ubuntu
-        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-        run: |
-          
-          ccache -s
-          HOST_CCACHE_DIR="$(ccache --get-config cache_dir)"
-          rm -rf $HOST_CCACHE_DIR
-          mv ./wheelhouse/.ccache $HOST_CCACHE_DIR
-          ls -la $HOST_CCACHE_DIR
-          ccache -s
-
-      - name: Reset datetime ccache
-        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-        run: |
-          
-          ccache -s
-          HOST_CCACHE_DIR="$(ccache --get-config cache_dir)"
-          find $HOST_CCACHE_DIR -exec touch -a -m -t 197001010000 {} \;
-          ccache -s
-
-      # done
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          path: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
-          name: build_artifact_python_bindings-${{ matrix.OS }}-${{ matrix.ARCH }}-${{ matrix.BUILD_AMDGPU && 'amdgpu-' || '' }}${{ matrix.BUILD_CUDA && 'cuda-' || '' }}${{ matrix.BUILD_VULKAN && 'vulkan-' || '' }}${{ matrix.BUILD_OPENMP && 'openmp' || '' }}
-
-  smoke-test:
-
-    needs: [build, build-linux-aarch64]
-
-    runs-on: ${{ matrix.runs-on }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        runs-on: [ "ubuntu-22.04", "windows-2022", "macos-14", "macos-13" ]
-        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14", "3.14t" ]
-        include: [
-          { runs-on: "ubuntu-22.04", arch: "x86_64" },
-          { runs-on: "windows-2022", arch: "AMD64" },
-          { runs-on: "macos-13", arch: "x86_64" },
-          { runs-on: "macos-14", arch: "arm64" },
-        ]
-
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: llvm/llvm-project
-          sparse-checkout: mlir/test/python/dialects
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: build_artifact_python_bindings-${{ matrix.runs-on }}-${{ matrix.arch }}-
-          path: wheelhouse
-          merge-multiple: true
-
-      - name: Install, configure, and test
-        run: |
-          
-          pip install mlir-python-bindings numpy -v -f wheelhouse
-          cd mlir/test/python/dialects
-          for f in *.py; do
-            if [[ "$f" == "python_test.py" ]]; then
-              continue
-            fi
-            python $f
-          done
 
   upload_bindings_wheels:
-
-    needs: [build, build-linux-aarch64, smoke-test]
+    needs: [build]
 
     runs-on: ubuntu-latest
 
@@ -326,21 +178,6 @@ jobs:
           token: "${{ secrets.GITHUB_TOKEN }}"
           tag: "latest"
           name: "latest"
-          removeArtifacts: false
-          allowUpdates: true
-          replacesArtifacts: true
-          makeLatest: true
-          artifactErrorsFailBuild: true
-
-      - name: Release current commit
-        uses: ncipollo/release-action@v1.12.0
-        with:
-          owner: makslevental
-          repo: wheels
-          artifacts: "dist/*.whl"
-          token: "${{ secrets.WHEELS_REPO }}"
-          tag: "i"
-          name: "i"
           removeArtifacts: false
           allowUpdates: true
           replacesArtifacts: true

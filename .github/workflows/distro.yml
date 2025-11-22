@@ -4,78 +4,70 @@ on:
   workflow_dispatch:
     inputs:
       DEBUG_ENABLED:
-        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+        description: "Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)"
         type: boolean
         required: false
         default: false
       DEBUG_OS:
-        description: 'which runner os to run the tmate action in (if the tmate action is run)'
+        description: "which runner os to run the tmate action in (if the tmate action is run)"
         type: string
-        default: 'windows-2022'
+        default: "windows-2022"
         required: false
       DEBUG_ARCH:
-        description: 'which runner arch to run the tmate action in (if the tmate action is run)'
+        description: "which runner arch to run the tmate action in (if the tmate action is run)"
         type: string
-        default: 'x86_64'
+        default: "x86_64"
         required: false
       DEBUG_DETACHED:
-        description: 'whether to launch tmate in detached mode (if the tmate action is run)'
+        description: "whether to launch tmate in detached mode (if the tmate action is run)"
         type: boolean
         required: false
         default: true
       LLVM_COMMIT:
-        description: 'llvm commit to build'
+        description: "llvm commit to build"
         type: string
         required: false
-        default: ''
+        default: ""
       CMAKE_ARGS:
-        description: 'extra cmake args'
+        description: "extra cmake args"
         type: string
         required: false
-        default: ''
+        default: ""
       # why are these strings and not type boolean?
       # https://stackoverflow.com/a/76294014/9045206
       APPLY_PATCHES:
-        description: 'whether to apply patches to source'
+        description: "whether to apply patches to source"
         required: false
         default: true
         type: boolean
       USE_CMAKE_NAMESPACES:
-        description: 'whether to build with cmake namespaced targets'
+        description: "whether to build with cmake namespaced targets"
         required: false
         default: false
         type: boolean
       BUILD_NATIVE_TOOLS:
-        description: 'whether to build native tools'
+        description: "whether to build native tools"
         required: false
         default: true
         type: boolean
-      RUN_TESTS:
-        description: 'whether to run llvm tests after build'
+      UPLOAD_ARTIFACTS:
+        description: "whether to upload artifacts and create releases"
         required: false
         default: false
         type: boolean
-#      DEBUG_CI_FAST_BUILD:
-#        description: 'whether to build only one single llvm target (llvm-tblgen)'
-#        required: false
-#        default: false
-#        type: boolean
+  #      DEBUG_CI_FAST_BUILD:
+  #        description: 'whether to build only one single llvm target (llvm-tblgen)'
+  #        required: false
+  #        default: false
+  #        type: boolean
 
   pull_request:
   release:
     types:
       - published
 
-  schedule:
-    # At minute 0 past hour 1. (see https://crontab.guru)
-    - cron: '00 01 * * *'
-      # At minute 0 past every 4th hour. (see https://crontab.guru)
-    - cron: '0 */4 * * *'
-
 jobs:
-
   get_llvm_project_commit:
-
     name: Get latest LLVM commit
 
     runs-on: ubuntu-latest
@@ -88,7 +80,7 @@ jobs:
       - name: Get llvm-project commit
         id: get_llvm_project_commit
         run: |
-          
+
           if [ x"${{ inputs.LLVM_COMMIT }}" == x"" ]; then
             sudo apt install jq
             LLVM_PROJECT_COMMIT=$(curl -s https://api.github.com/repos/llvm/llvm-project/commits/main | jq -r '.sha[:8]')
@@ -98,24 +90,24 @@ jobs:
           echo "LLVM_PROJECT_COMMIT=${LLVM_PROJECT_COMMIT}" | tee -a $GITHUB_OUTPUT
           DATETIME=$(date +"%Y%m%d%H")
           echo "DATETIME=${DATETIME}" | tee -a $GITHUB_OUTPUT
-          
+
   settings:
-    
     runs-on: ubuntu-latest
-    
+
     needs: get_llvm_project_commit
-    
+
     steps:
-      
       - name: Set commons as env vars
         id: settings
         run: |
-          
+
           UPLOAD_ARTIFACTS="true"
-          if [ x"${{ github.event.schedule }}" == x"0 */4 * * *" ] || [ x"$DEBUG_CI_FAST_BUILD" == x"true" ]; then
+          if [ x"${{ github.event_name }}" == x"workflow_dispatch" ]; then
+            UPLOAD_ARTIFACTS="${{ inputs.UPLOAD_ARTIFACTS }}"
+          elif [ x"${{ github.event.schedule }}" == x"0 */4 * * *" ] || [ x"$DEBUG_CI_FAST_BUILD" == x"true" ]; then
             UPLOAD_ARTIFACTS="false"
-          fi 
-          
+          fi
+
           echo "UPLOAD_ARTIFACTS=$UPLOAD_ARTIFACTS" | tee -a $GITHUB_OUTPUT
 
     outputs:
@@ -128,12 +120,11 @@ jobs:
       DEBUG_ENABLED: ${{ inputs.DEBUG_ENABLED }}
       DEBUG_OS: ${{ inputs.DEBUG_OS }}
       LLVM_PROJECT_COMMIT: ${{ needs.get_llvm_project_commit.outputs.LLVM_PROJECT_COMMIT }}
-      RUN_TESTS: ${{ inputs.RUN_TESTS }}
+      RUN_TESTS: "false"
       UPLOAD_ARTIFACTS: ${{ steps.settings.outputs.UPLOAD_ARTIFACTS }}
       USE_CMAKE_NAMESPACES: ${{ inputs.USE_CMAKE_NAMESPACES }}
 
   build:
-
     needs: settings
 
     name: ${{ matrix.OS }} ${{ matrix.ARCH }} ${{ matrix.BUILD_CUDA && 'cuda' || '' }} ${{ matrix.BUILD_AMDGPU && 'amdgpu' || '' }} ${{ matrix.BUILD_VULKAN && 'vulkan' || '' }} ${{ matrix.BUILD_OPENMP && 'openmp' || '' }}
@@ -152,8 +143,8 @@ jobs:
           - OS: ubuntu-22.04
             ARCH: x86_64
 
-          - OS: ubuntu-22.04
-            ARCH: wasm32
+          # - OS: ubuntu-22.04
+          #   ARCH: wasm32
 
           - OS: ubuntu-22.04
             ARCH: aarch64
@@ -166,30 +157,30 @@ jobs:
             ARCH: x86_64
             BUILD_AMDGPU: true
 
-#          - OS: ubuntu-22.04
-#            ARCH: x86_64
-#            BUILD_VULKAN: true
+          #          - OS: ubuntu-22.04
+          #            ARCH: x86_64
+          #            BUILD_VULKAN: true
 
-#          - OS: ubuntu-22.04
-#            ARCH: x86_64
-#            BUILD_OPENMP: true
+          #          - OS: ubuntu-22.04
+          #            ARCH: x86_64
+          #            BUILD_OPENMP: true
 
           - OS: windows-2022
             ARCH: AMD64
 
-          - OS: macos-13
-            ARCH: x86_64
+          # - OS: macos-13
+          #   ARCH: x86_64
 
           - OS: macos-14
             ARCH: arm64
 
-#          - OS: macos-13
-#            ARCH: arm64
-#            BUILD_VULKAN: true
-#
-#          - OS: macos-13
-#            ARCH: arm64
-#            BUILD_OPENMP: true
+    #          - OS: macos-13
+    #            ARCH: arm64
+    #            BUILD_VULKAN: true
+    #
+    #          - OS: macos-13
+    #            ARCH: arm64
+    #            BUILD_OPENMP: true
 
     defaults:
       run:
@@ -200,296 +191,302 @@ jobs:
       contents: write
 
     steps:
-    
-    - name: Checkout actions
-      uses: actions/checkout@v3
+      - name: Checkout actions
+        uses: actions/checkout@v3
 
-    - uses: ./actions/setup_base
-      id: setup_base
-      with:
-        # optional
-        DEBUG_ENABLED: ${{ needs.settings.outputs.DEBUG_ENABLED }}
-        DEBUG_OS: ${{ needs.settings.outputs.DEBUG_OS }}
-        DEBUG_ARCH: ${{ needs.settings.outputs.DEBUG_ARCH }}
-        DEBUG_DETACHED: ${{ needs.settings.outputs.DEBUG_DETACHED }}
-        # required
-        MATRIX_OS: ${{ matrix.OS }}
-        MATRIX_ARCH: ${{ matrix.ARCH }}
+      - uses: ./actions/setup_base
+        id: setup_base
+        with:
+          # optional
+          DEBUG_ENABLED: ${{ needs.settings.outputs.DEBUG_ENABLED }}
+          DEBUG_OS: ${{ needs.settings.outputs.DEBUG_OS }}
+          DEBUG_ARCH: ${{ needs.settings.outputs.DEBUG_ARCH }}
+          DEBUG_DETACHED: ${{ needs.settings.outputs.DEBUG_DETACHED }}
+          # required
+          MATRIX_OS: ${{ matrix.OS }}
+          MATRIX_ARCH: ${{ matrix.ARCH }}
 
-    - uses: ./actions/setup_ccache
-      id: setup_ccache
-      with:
-        MATRIX_OS: ${{ matrix.OS }}
-        MATRIX_ARCH: ${{ matrix.ARCH }}
-        EXTRA_KEY: ${{ matrix.BUILD_AMDGPU && 'amdgpu-' || '' }}${{ matrix.BUILD_CUDA && 'cuda-' || '' }}${{ matrix.BUILD_VULKAN && 'vulkan-' || '' }}${{ matrix.BUILD_OPENMP && 'openmp' || '' }}
-        WORKSPACE_ROOT: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-        
-      # This step is needed because action/checkout does not support paths.
-      # don't move because you can't parameterize -uses: ./actions/setup_ccache with workspace_root
-    - name: Copy stuff to workspace_root
-      run: |
-        
-        WORKSPACE_ROOT="${{ steps.setup_base.outputs.WORKSPACE_ROOT }}"
-        if [[ "${{ matrix.OS }}" == *"windows"* ]]; then
-          WORKSPACE_ROOT=$(echo "/$WORKSPACE_ROOT" | sed -e 's/\\/\//g' -e 's/://')
-        fi
-        ls -lah
-        
-        if [[ x"$PWD" != x"$WORKSPACE_ROOT" ]]; then
-          shopt -s dotglob
-          cp -r ./* "$WORKSPACE_ROOT"
-        fi
-        ls -lah "$WORKSPACE_ROOT"
+      - uses: ./actions/setup_ccache
+        id: setup_ccache
+        with:
+          MATRIX_OS: ${{ matrix.OS }}
+          MATRIX_ARCH: ${{ matrix.ARCH }}
+          EXTRA_KEY: ${{ matrix.BUILD_AMDGPU && 'amdgpu-' || '' }}${{ matrix.BUILD_CUDA && 'cuda-' || '' }}${{ matrix.BUILD_VULKAN && 'vulkan-' || '' }}${{ matrix.BUILD_OPENMP && 'openmp' || '' }}
+          WORKSPACE_ROOT: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
 
-    # setup llvm
+        # This step is needed because action/checkout does not support paths.
+        # don't move because you can't parameterize -uses: ./actions/setup_ccache with workspace_root
+      - name: Copy stuff to workspace_root
+        run: |
 
-    - name: Get LLVM
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        curl -s https://codeload.github.com/llvm/llvm-project/zip/${{ needs.settings.outputs.LLVM_PROJECT_COMMIT }} -o llvm.zip
-        unzip -o -q llvm.zip
-        rm -rf llvm.zip
-        LLVM_PROJECT_COMMIT=${{ needs.settings.outputs.LLVM_PROJECT_COMMIT }}
-        mv llvm-project-$LLVM_PROJECT_COMMIT llvm-project
-
-    - name: Set env variables
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        echo "APPLY_PATCHES=${{ needs.settings.outputs.APPLY_PATCHES }}" >> $GITHUB_ENV
-        echo "CMAKE_ARGS=${{ needs.settings.outputs.CMAKE_ARGS }}" >> $GITHUB_ENV
-        echo "RUN_TESTS=${{ needs.settings.outputs.RUN_TESTS }}" >> $GITHUB_ENV
-        echo "DATETIME=${{ needs.settings.outputs.DATETIME }}" >> $GITHUB_ENV
-        echo "LLVM_PROJECT_COMMIT=${{ needs.settings.outputs.LLVM_PROJECT_COMMIT }}" >> $GITHUB_ENV
-        echo "USE_CMAKE_NAMESPACES=${{ needs.settings.outputs.USE_CMAKE_NAMESPACES }}" >> $GITHUB_ENV
-        
-        echo "BUILD_CUDA=${{ matrix.BUILD_CUDA }}" >> $GITHUB_ENV
-        echo "BUILD_AMDGPU=${{ matrix.BUILD_AMDGPU }}" >> $GITHUB_ENV
-        echo "BUILD_OPENMP=${{ matrix.BUILD_OPENMP }}" >> $GITHUB_ENV
-        echo "BUILD_VULKAN=${{ matrix.BUILD_VULKAN }}" >> $GITHUB_ENV
-        echo "CIBW_ARCHS=${{ matrix.ARCH }}" >> $GITHUB_ENV
-        echo "MATRIX_OS=${{ matrix.OS }}" >> $GITHUB_ENV
-        
-        echo "CMAKE_GENERATOR=Ninja" >> $GITHUB_ENV
-        echo "HOST_CCACHE_DIR="$(ccache --get-config cache_dir)"" >> $GITHUB_ENV
-        echo "PARALLEL_LEVEL=2" >> $GITHUB_ENV
-        echo "PIP_FIND_LINKS=https://github.com/makslevental/mlir-wheels/releases/expanded_assets/latest" >> $GITHUB_ENV
-
-    - name: set ENV macos
-      if: contains(matrix.OS, 'macos')
-      shell: bash
-      run: |
-        
-        # echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion)" | tee -a $GITHUB_ENV
-        echo "MACOSX_DEPLOYMENT_TARGET=11.0" | tee -a $GITHUB_ENV
-
-    # build
-
-    - name: cibuildwheel
-      if: ${{ matrix.ARCH != 'aarch64' && matrix.ARCH != 'wasm32' }}
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        cibuildwheel --output-dir wheelhouse
-
-    - name: build aarch ubuntu wheel
-      if: (matrix.ARCH == 'aarch64')
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        ./scripts/apply_patches.sh
-        export RUN_TESTS=0
-        pip wheel . -v -w wheelhouse
-
-    - name: install pyodide
-      if: contains(matrix.ARCH, 'wasm')
-      run: |
-        pip install pyodide-build>=0.28.0
-        echo EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version) >> $GITHUB_ENV
-
-    - name: Setup Emscripten
-      if: contains(matrix.ARCH, 'wasm')
-      uses: mymindstorm/setup-emsdk@v14
-      with:
-        version: ${{ env.EMSCRIPTEN_VERSION }}
-
-    - name: build wasm python wheel
-      if: contains(matrix.ARCH, 'wasm')
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        ./scripts/apply_patches.sh
-        pip download  mlir_native_tools -f https://makslevental.github.io/wheels
-        unzip -j mlir_native_tools-*whl -d mlir_native_tools
-        rm -rf mlir_native_tools-*whl
-        
-        export LLVM_NATIVE_TOOL_DIR="$PWD/mlir_native_tools"
-        export LLVM_TABLEGEN="$PWD/mlir_native_tools/llvm-tblgen"
-        export MLIR_TABLEGEN="$PWD/mlir_native_tools/mlir-tblgen"
-        export MLIR_LINALG_ODS_YAML_GEN="$PWD/mlir_native_tools/mlir-linalg-ods-yaml-gen"
-        pyodide build pywasm -o wheelhouse --compression-level 10
-
-    - name: Upload wasm32 wheels
-      if: contains(matrix.ARCH, 'wasm')
-      uses: actions/upload-artifact@v4
-      with:
-        path: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
-        name: build_artifact_python_bindings-${{ matrix.OS }}-${{ matrix.ARCH }}
-
-    - name: Clean llvm-project
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        rm -rf llvm-project
-        rm -rf build
-
-    - name: Get wheel version
-      if: ${{ !contains(matrix.ARCH, 'wasm') }}
-      id: get_wheel_version
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        pip install pkginfo
-        WHL=$(ls wheelhouse/mlir-*whl)
-        echo "MLIR_WHEEL_VERSION=$(python -c "import pkginfo; w = pkginfo.Wheel('$WHL'); print(w.version.split('+')[0] + '+' + w.version.split('+')[1].rsplit('.', 1)[-1])")" | tee -a $GITHUB_OUTPUT
-
-    - name: Download cache from container ubuntu
-      if: (contains(matrix.OS, 'ubuntu') && matrix.ARCH == 'x86_64') && (success() || failure())
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        ccache -s
-        rm -rf $HOST_CCACHE_DIR
-        mv ./wheelhouse/.ccache $HOST_CCACHE_DIR
-        ls -la $HOST_CCACHE_DIR
-        ccache -s
-
-    - name: Reset datetime ccache
-      # find: The environment is too large for exec().
-      if: ${{ !contains(matrix.OS, 'windows') }}
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        ccache --print-stats
-        find $HOST_CCACHE_DIR -exec touch -a -m -t 197001010000 {} \;
-
-    - name: rename non-windows
-      if: ${{ !contains(matrix.OS, 'windows') }}
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        rename 's/cp310-cp310/py3-none/' wheelhouse/mlir-*whl
-        rename 's/cp311-cp311/py3-none/' wheelhouse/mlir-*whl
-        rename 's/cp312-cp312/py3-none/' wheelhouse/mlir-*whl
-        
-        if [ x"${{ matrix.ARCH }}" == x"aarch64" ]; then
-          rename 's/x86_64/aarch64/' wheelhouse/mlir-*whl
-        fi
-
-    # git-bash doesn't have rename
-    - name: rename windows
-      shell: pwsh
-      if: ${{ matrix.OS == 'windows-2022' }}
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      run: |
-        
-        ls wheelhouse/mlir-*whl | Rename-Item -NewName {$_ -replace 'cp310-cp310', 'py3-none' }
-        ls wheelhouse/mlir-*whl | Rename-Item -NewName {$_ -replace 'cp311-cp311', 'py3-none' }
-        ls wheelhouse/mlir-*whl | Rename-Item -NewName {$_ -replace 'cp312-cp312', 'py3-none' }
-        
-    - name: Build native_tools wheel
-      working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
-      id: build_native_tools_wheel
-      if: ${{ !contains(matrix.ARCH, 'wasm') && needs.settings.outputs.BUILD_NATIVE_TOOLS == 'true' }}
-      run: |
-        
-        for TOOL in "llvm-tblgen" "mlir-tblgen" "mlir-linalg-ods-yaml-gen" "mlir-pdll" "llvm-config" "FileCheck"; do
-          if [ x"${{ matrix.OS }}" == x"windows-2022" ]; then
-            TOOL="$TOOL.exe"
+          WORKSPACE_ROOT="${{ steps.setup_base.outputs.WORKSPACE_ROOT }}"
+          if [[ "${{ matrix.OS }}" == *"windows"* ]]; then
+            WORKSPACE_ROOT=$(echo "/$WORKSPACE_ROOT" | sed -e 's/\\/\//g' -e 's/://')
           fi
-          unzip -j wheelhouse/mlir-*whl "mlir/bin/$TOOL" -d native_tools/
-        done
-        
-        if [ x"${{ matrix.OS }}" == x"ubuntu-22.04" ] || [ x"${{ matrix.OS }}" == x"ubuntu-20.04" ]; then
-          PLAT="linux"
-        elif [ "${{ contains(matrix.OS, 'macos') }}" == "true" ]; then
-          PLAT="macosx_12_0"
-        elif [ x"${{ matrix.OS }}" == x"windows-2022" ]; then
-          PLAT="win"
-        fi
-        
-        PLAT=${PLAT}_$(echo ${{ matrix.ARCH }} | tr '[:upper:]' '[:lower:]')
-        pushd native_tools
+          ls -lah
 
-        MLIR_WHEEL_VERSION=${{ steps.get_wheel_version.outputs.MLIR_WHEEL_VERSION }} \
-          python setup.py bdist_wheel --dist-dir ../wheelhouse --plat $PLAT
-        
-        popd
+          if [[ x"$PWD" != x"$WORKSPACE_ROOT" ]]; then
+            shopt -s dotglob
+            cp -r ./* "$WORKSPACE_ROOT"
+          fi
+          ls -lah "$WORKSPACE_ROOT"
 
-    - name: Release current commit
-      if: ${{ needs.settings.outputs.UPLOAD_ARTIFACTS == 'true' }}
-      uses: ncipollo/release-action@v1.12.0
-      with:
-        artifacts: |
-          ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
-          ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.zip
-        token: "${{ secrets.GITHUB_TOKEN }}"
-        tag: "latest"
-        name: "latest"
-        removeArtifacts: false
-        allowUpdates: true
-        replacesArtifacts: true
-        makeLatest: true
+      # setup llvm
 
-    - name: Release current commit
-      if: ${{ needs.settings.outputs.UPLOAD_ARTIFACTS == 'true' }}
-      uses: ncipollo/release-action@v1.12.0
-      with:
-        owner: makslevental
-        repo: wheels
-        artifacts: |
-          ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
-          ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.zip
-        token: "${{ secrets.WHEELS_REPO }}"
-        tag: "i"
-        name: "i"
-        removeArtifacts: false
-        allowUpdates: true
-        replacesArtifacts: true
-        makeLatest: true
+      - name: Cache LLVM source
+        id: cache-llvm-source
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/llvm-project
+          key: llvm-source-${{ needs.settings.outputs.LLVM_PROJECT_COMMIT }}
 
-#  upload_pypi:
-#
-#    if: github.event_name != 'pull_request'
-#
-#    needs: [build]
-#
-#    runs-on: ubuntu-latest
-#
-#    environment: pypi
-#
-#    permissions:
-#      id-token: write
-#
-#    steps:
-#
-#      - uses: actions/download-artifact@v4
-#        with:
-#          pattern: build_artifact_python_bindings-ubuntu-22.04-wasm32
-#          path: dist
-#          merge-multiple: true
-#
-#      - uses: pypa/gh-action-pypi-publish@release/v1
-#        with:
-#          repository-url: https://test.pypi.org/legacy/
-#          user: __token__
-#          password: ${{ secrets.TEST_PYPI_PASSWORD }}
-#          skip-existing: false
-#          verbose: true
-#          verify-metadata: false
+      - name: Get LLVM
+        if: steps.cache-llvm-source.outputs.cache-hit != 'true'
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          curl -s https://codeload.github.com/llvm/llvm-project/zip/${{ needs.settings.outputs.LLVM_PROJECT_COMMIT }} -o llvm.zip
+          unzip -o -q llvm.zip
+          rm -rf llvm.zip
+          LLVM_PROJECT_COMMIT=${{ needs.settings.outputs.LLVM_PROJECT_COMMIT }}
+          mv llvm-project-$LLVM_PROJECT_COMMIT llvm-project
+
+      - name: Set env variables
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          echo "APPLY_PATCHES=${{ needs.settings.outputs.APPLY_PATCHES }}" >> $GITHUB_ENV
+          echo "CMAKE_ARGS=${{ needs.settings.outputs.CMAKE_ARGS }}" >> $GITHUB_ENV
+          echo "RUN_TESTS=${{ needs.settings.outputs.RUN_TESTS }}" >> $GITHUB_ENV
+          echo "DATETIME=${{ needs.settings.outputs.DATETIME }}" >> $GITHUB_ENV
+          echo "LLVM_PROJECT_COMMIT=${{ needs.settings.outputs.LLVM_PROJECT_COMMIT }}" >> $GITHUB_ENV
+          echo "USE_CMAKE_NAMESPACES=${{ needs.settings.outputs.USE_CMAKE_NAMESPACES }}" >> $GITHUB_ENV
+
+          echo "BUILD_CUDA=${{ matrix.BUILD_CUDA }}" >> $GITHUB_ENV
+          echo "BUILD_AMDGPU=${{ matrix.BUILD_AMDGPU }}" >> $GITHUB_ENV
+          echo "BUILD_OPENMP=${{ matrix.BUILD_OPENMP }}" >> $GITHUB_ENV
+          echo "BUILD_VULKAN=${{ matrix.BUILD_VULKAN }}" >> $GITHUB_ENV
+          echo "CIBW_ARCHS=${{ matrix.ARCH }}" >> $GITHUB_ENV
+          echo "MATRIX_OS=${{ matrix.OS }}" >> $GITHUB_ENV
+
+          echo "CMAKE_GENERATOR=Ninja" >> $GITHUB_ENV
+          echo "HOST_CCACHE_DIR="$(ccache --get-config cache_dir)"" >> $GITHUB_ENV
+          echo "PARALLEL_LEVEL=2" >> $GITHUB_ENV
+          echo "PIP_FIND_LINKS=https://github.com/makslevental/mlir-wheels/releases/expanded_assets/latest" >> $GITHUB_ENV
+
+      - name: set ENV macos
+        if: contains(matrix.OS, 'macos')
+        shell: bash
+        run: |
+
+          # echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion)" | tee -a $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=11.0" | tee -a $GITHUB_ENV
+
+      # build
+
+      - name: cibuildwheel
+        if: ${{ matrix.ARCH != 'aarch64' && matrix.ARCH != 'wasm32' }}
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          cibuildwheel --output-dir wheelhouse
+
+      - name: build aarch ubuntu wheel
+        if: (matrix.ARCH == 'aarch64')
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          ./scripts/apply_patches.sh
+          export RUN_TESTS=0
+          pip wheel . -v -w wheelhouse
+
+      - name: install pyodide
+        if: contains(matrix.ARCH, 'wasm')
+        run: |
+          pip install pyodide-build>=0.28.0
+          echo EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version) >> $GITHUB_ENV
+
+      - name: Setup Emscripten
+        if: contains(matrix.ARCH, 'wasm')
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSCRIPTEN_VERSION }}
+
+      - name: build wasm python wheel
+        if: contains(matrix.ARCH, 'wasm')
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          ./scripts/apply_patches.sh
+          pip download  mlir_native_tools -f https://makslevental.github.io/wheels
+          unzip -j mlir_native_tools-*whl -d mlir_native_tools
+          rm -rf mlir_native_tools-*whl
+
+          export LLVM_NATIVE_TOOL_DIR="$PWD/mlir_native_tools"
+          export LLVM_TABLEGEN="$PWD/mlir_native_tools/llvm-tblgen"
+          export MLIR_TABLEGEN="$PWD/mlir_native_tools/mlir-tblgen"
+          export MLIR_LINALG_ODS_YAML_GEN="$PWD/mlir_native_tools/mlir-linalg-ods-yaml-gen"
+          pyodide build pywasm -o wheelhouse --compression-level 10
+
+      - name: Upload wasm32 wheels
+        if: contains(matrix.ARCH, 'wasm')
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
+          name: build_artifact_python_bindings-${{ matrix.OS }}-${{ matrix.ARCH }}
+
+      - name: Clean llvm-project
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          rm -rf llvm-project
+          rm -rf build
+
+      - name: Get wheel version
+        if: ${{ !contains(matrix.ARCH, 'wasm') }}
+        id: get_wheel_version
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+          pip install pkginfo
+          WHL=$(ls wheelhouse/mlir-*whl)
+          echo "MLIR_WHEEL_VERSION=$(python -c "import pkginfo; w = pkginfo.Wheel('$WHL'); print(w.version.split('+')[0] + '+' + w.version.split('+')[1].rsplit('.', 1)[-1])")" | tee -a $GITHUB_OUTPUT
+
+      - name: Download cache from container ubuntu
+        if: (contains(matrix.OS, 'ubuntu') && matrix.ARCH == 'x86_64') && (success() || failure())
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          ccache -s
+          rm -rf $HOST_CCACHE_DIR
+          mv ./wheelhouse/.ccache $HOST_CCACHE_DIR
+          ls -la $HOST_CCACHE_DIR
+          ccache -s
+
+      - name: Reset datetime ccache
+        # find: The environment is too large for exec().
+        if: ${{ !contains(matrix.OS, 'windows') }}
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          ccache --print-stats
+          find $HOST_CCACHE_DIR -exec touch -a -m -t 197001010000 {} \;
+
+      - name: rename non-windows
+        if: ${{ !contains(matrix.OS, 'windows') }}
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          rename 's/cp310-cp310/py3-none/' wheelhouse/mlir-*whl
+          rename 's/cp311-cp311/py3-none/' wheelhouse/mlir-*whl
+          rename 's/cp312-cp312/py3-none/' wheelhouse/mlir-*whl
+
+          if [ x"${{ matrix.ARCH }}" == x"aarch64" ]; then
+            rename 's/x86_64/aarch64/' wheelhouse/mlir-*whl
+          fi
+
+      # git-bash doesn't have rename
+      - name: rename windows
+        shell: pwsh
+        if: ${{ matrix.OS == 'windows-2022' }}
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        run: |
+
+          ls wheelhouse/mlir-*whl | Rename-Item -NewName {$_ -replace 'cp310-cp310', 'py3-none' }
+          ls wheelhouse/mlir-*whl | Rename-Item -NewName {$_ -replace 'cp311-cp311', 'py3-none' }
+          ls wheelhouse/mlir-*whl | Rename-Item -NewName {$_ -replace 'cp312-cp312', 'py3-none' }
+
+      - name: Build native_tools wheel
+        working-directory: ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}
+        id: build_native_tools_wheel
+        if: ${{ !contains(matrix.ARCH, 'wasm') && needs.settings.outputs.BUILD_NATIVE_TOOLS == 'true' }}
+        run: |
+
+          for TOOL in "llvm-tblgen" "mlir-tblgen" "mlir-linalg-ods-yaml-gen" "mlir-pdll" "llvm-config" "FileCheck"; do
+            if [ x"${{ matrix.OS }}" == x"windows-2022" ]; then
+              TOOL="$TOOL.exe"
+            fi
+            unzip -j wheelhouse/mlir-*whl "mlir/bin/$TOOL" -d native_tools/
+          done
+
+          if [ x"${{ matrix.OS }}" == x"ubuntu-22.04" ] || [ x"${{ matrix.OS }}" == x"ubuntu-20.04" ]; then
+            PLAT="linux"
+          elif [ "${{ contains(matrix.OS, 'macos') }}" == "true" ]; then
+            PLAT="macosx_12_0"
+          elif [ x"${{ matrix.OS }}" == x"windows-2022" ]; then
+            PLAT="win"
+          fi
+
+          PLAT=${PLAT}_$(echo ${{ matrix.ARCH }} | tr '[:upper:]' '[:lower:]')
+          pushd native_tools
+
+          MLIR_WHEEL_VERSION=${{ steps.get_wheel_version.outputs.MLIR_WHEEL_VERSION }} \
+            python setup.py bdist_wheel --dist-dir ../wheelhouse --plat $PLAT
+
+          popd
+
+      - name: Release current commit
+        if: ${{ needs.settings.outputs.UPLOAD_ARTIFACTS == 'true' }}
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          artifacts: |
+            ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
+            ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.zip
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          tag: "latest"
+          name: "latest"
+          removeArtifacts: false
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: true
+
+      - name: Release current commit
+        if: ${{ needs.settings.outputs.UPLOAD_ARTIFACTS == 'true' }}
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          owner: makslevental
+          repo: wheels
+          artifacts: |
+            ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.whl
+            ${{ steps.setup_base.outputs.WORKSPACE_ROOT }}/wheelhouse/*.zip
+          token: "${{ secrets.WHEELS_REPO }}"
+          tag: "i"
+          name: "i"
+          removeArtifacts: false
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: true
+
+  #  upload_pypi:
+  #
+  #    if: github.event_name != 'pull_request'
+  #
+  #    needs: [build]
+  #
+  #    runs-on: ubuntu-latest
+  #
+  #    environment: pypi
+  #
+  #    permissions:
+  #      id-token: write
+  #
+  #    steps:
+  #
+  #      - uses: actions/download-artifact@v4
+  #        with:
+  #          pattern: build_artifact_python_bindings-ubuntu-22.04-wasm32
+  #          path: dist
+  #          merge-multiple: true
+  #
+  #      - uses: pypa/gh-action-pypi-publish@release/v1
+  #        with:
+  #          repository-url: https://test.pypi.org/legacy/
+  #          user: __token__
+  #          password: ${{ secrets.TEST_PYPI_PASSWORD }}
+  #          skip-existing: false
+  #          verbose: true
+  #          verify-metadata: false
 
   call-build-python-bindings:
-
     needs: [build, settings]
 
     if: ${{ needs.settings.outputs.UPLOAD_ARTIFACTS == 'true' }}

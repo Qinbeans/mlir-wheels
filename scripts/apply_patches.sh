@@ -5,8 +5,15 @@ set -uxo pipefail
 PATCHES="\
 add_td_to_mlirpythoncapi_headers \
 mscv \
-remove_openmp_dep_on_clang_and_export_async_symbols \
 "
+
+# For Windows, use simplified patch that only exports async symbols
+# For other platforms, use full patch that also removes OpenMP dependencies
+if [ x"$MATRIX_OS" == x"windows-2022" ]; then
+  PATCHES="$PATCHES export_async_symbols"
+else
+  PATCHES="$PATCHES remove_openmp_dep_on_clang_and_export_async_symbols"
+fi
 
 if [ x"$CIBW_ARCHS" == x"wasm32" ]; then
   PATCHES="$PATCHES wasm_mlir_opt"
