@@ -146,22 +146,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - OS: ubuntu-22.04
-          #   ARCH: x86_64
+          - OS: ubuntu-22.04
+            ARCH: x86_64
 
           # - OS: ubuntu-22.04
           #   ARCH: wasm32
 
-          # - OS: ubuntu-22.04
-          #   ARCH: aarch64
+          - OS: ubuntu-22.04
+            ARCH: aarch64
 
-          # - OS: ubuntu-22.04
-          #   ARCH: x86_64
-          #   BUILD_CUDA: true
+          - OS: ubuntu-22.04
+            ARCH: x86_64
+            BUILD_CUDA: true
 
-          # - OS: ubuntu-22.04
-          #   ARCH: x86_64
-          #   BUILD_AMDGPU: true
+          - OS: ubuntu-22.04
+            ARCH: x86_64
+            BUILD_AMDGPU: true
 
           #          - OS: ubuntu-22.04
           #            ARCH: x86_64
@@ -177,8 +177,8 @@ jobs:
           # - OS: macos-13
           #   ARCH: x86_64
 
-          # - OS: macos-14
-          #   ARCH: arm64
+          - OS: macos-14
+            ARCH: arm64
 
     #          - OS: macos-13
     #            ARCH: arm64
